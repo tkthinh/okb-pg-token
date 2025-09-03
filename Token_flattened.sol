@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+
 // File: @openzeppelin/contracts/token/ERC20/IERC20.sol
 
 
@@ -614,15 +614,51 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
 // File: Token.sol
 
 
-pragma solidity ^0.8.20;
-
+pragma solidity ^0.8.20;
 
 contract Token is ERC20 {
-    constructor(uint256 initialSupply) ERC20("TestTokenA", "TTA") {
-        _mint(msg.sender, initialSupply * 10**6);
+    // Mapping to track the last withdrawal timestamp for each user
+    mapping(address => uint256) private lastWithdrawalTime;
+
+    // Event for withdrawal
+    event Withdrawn(address indexed user, uint256 amount);
+
+    constructor(uint256 initialSupply) ERC20("TestTokenB", "TTB") {
+        // Mint initial supply to contract for withdrawals
+        _mint(address(this), initialSupply * 1e6);
     }
 
+    // Override decimals to return 6
     function decimals() public view virtual override returns (uint8) {
         return 6;
+    }
+
+    // Function to allow user to withdraw 1 token (1 * 10^6 units) once per day
+    function withdraw(address rqAddress) external {
+        // Check if user has waited 24 hours since last withdrawal
+        require(
+            block.timestamp >= lastWithdrawalTime[msg.sender] + 1 days,
+            "Can only withdraw once per day"
+        );
+
+        // Define 1 token (1 * 10^6 units due to 6 decimals)
+        uint256 amount = 1 * 1e6;
+
+        // Check if contract has enough tokens
+        require(balanceOf(address(this)) >= amount, "Contract has insufficient tokens");
+
+        // Update last withdrawal time
+        lastWithdrawalTime[rqAddress] = block.timestamp;
+
+        // Transfer 1 token to user
+        _transfer(address(this), rqAddress, amount);
+
+        // Emit event
+        emit Withdrawn(rqAddress, amount);
+    }
+
+    // Optional: Function to check last withdrawal time for a user
+    function getLastWithdrawalTime(address user) external view returns (uint256) {
+        return lastWithdrawalTime[user];
     }
 }
